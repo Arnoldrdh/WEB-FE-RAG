@@ -1,6 +1,28 @@
 <template>
   <div class="w-full">
     <BaseCard title="Upload Dokumen" variant="elevated">
+      <!-- Upload Mode Selector -->
+      <div class="mb-4 flex items-center space-x-4">
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input
+            type="radio"
+            v-model="uploadMode"
+            value="single"
+            class="w-4 h-4 text-blue-600"
+          />
+          <span class="text-sm font-medium text-gray-700">Single Upload</span>
+        </label>
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input
+            type="radio"
+            v-model="uploadMode"
+            value="multi"
+            class="w-4 h-4 text-blue-600"
+          />
+          <span class="text-sm font-medium text-gray-700">Multi Upload (Async)</span>
+        </label>
+      </div>
+
       <!-- Upload Area -->
       <div
         @dragover.prevent="isDragging = true"
@@ -13,7 +35,7 @@
         <input
           ref="fileInput"
           type="file"
-          multiple
+          :multiple="uploadMode === 'multi'"
           accept=".pdf,.doc,.docx,.txt,.xlsx,.xls,.ppt,.pptx"
           @change="handleFileSelect"
           class="hidden"
@@ -26,17 +48,17 @@
             </svg>
           </div>
           <h3 class="text-lg font-semibold text-gray-900 mb-2">
-            Drop files here or click to browse
+            {{ uploadMode === 'single' ? 'Upload Single File' : 'Upload Multiple Files' }}
           </h3>
           <p class="text-sm text-gray-500 mb-4">
-            Support for PDF, DOC, DOCX, TXT, XLSX, PPT, PPTX
+            Drag & drop atau klik untuk browse
           </p>
           <p class="text-xs text-gray-400">
-            Maximum file size: 50MB per file
+            Support: PDF, DOC, DOCX, TXT, XLSX, PPT, PPTX • Max: 50MB per file
           </p>
         </div>
 
-        <!-- File List -->
+        <!-- File List Preview -->
         <div v-else-if="files.length > 0 && !isUploading" class="space-y-3">
           <div
             v-for="(file, index) in files"
@@ -71,12 +93,46 @@
             <BaseLoader type="spinner" :size="32" color="blue" />
           </div>
           <div>
-            <p class="text-sm font-medium text-gray-900 mb-2">Uploading files...</p>
-            <ProgressBar :value="uploadProgress" :max="100" />
+            <p class="text-sm font-medium text-gray-900 mb-2">
+              {{ uploadMode === 'single' ? 'Uploading file...' : 'Uploading files (async)...' }}
+            </p>
+            <ProgressBar :value="uploadProgress" :max="100" animated />
             <p class="text-xs text-gray-500 mt-2">
               {{ uploadedCount }} of {{ totalFiles }} files uploaded
             </p>
           </div>
+        </div>
+      </div>
+
+      <!-- Upload Settings -->
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Chunk Size
+          </label>
+          <input
+            v-model.number="chunkSize"
+            type="number"
+            min="100"
+            max="2000"
+            step="100"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p class="text-xs text-gray-500 mt-1">Default: 500 characters</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Overlap
+          </label>
+          <input
+            v-model.number="overlap"
+            type="number"
+            min="0"
+            max="500"
+            step="50"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p class="text-xs text-gray-500 mt-1">Default: 100 characters</p>
         </div>
       </div>
 
@@ -105,7 +161,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
               </template>
-              Upload Files
+              {{ uploadMode === 'single' ? 'Upload File' : 'Upload Files' }}
             </BaseButton>
           </div>
         </div>
@@ -116,10 +172,11 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import ingestApi from '@/services/ingestApi';
 import BaseCard from '../base/BaseCard.vue';
 import BaseButton from '../base/BaseButton.vue';
 import BaseLoader from '../base/BaseLoader.vue';
-import ProgressBar from './ProgressBar.vue';
+import ProgressBar from './ProggressBar.vue';
 
 const fileInput = ref(null);
 const files = ref([]);
@@ -128,8 +185,11 @@ const isUploading = ref(false);
 const uploadProgress = ref(0);
 const uploadedCount = ref(0);
 const totalFiles = ref(0);
+const uploadMode = ref('multi'); // 'single' or 'multi'
+const chunkSize = ref(500);
+const overlap = ref(100);
 
-const emit = defineEmits(['upload-complete']);
+const emit = defineEmits(['upload-complete', 'upload-error']);
 
 const uploadAreaClasses = computed(() => {
   return isDragging.value
@@ -169,19 +229,25 @@ const addFiles = (newFiles) => {
     ];
     
     if (file.size > maxSize) {
-      alert(`File ${file.name} is too large. Maximum size is 50MB.`);
+      alert(`File ${file.name} terlalu besar. Maximum size: 50MB.`);
       return false;
     }
     
     if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt|xlsx|xls|ppt|pptx)$/i)) {
-      alert(`File ${file.name} has invalid type.`);
+      alert(`File ${file.name} memiliki format yang tidak valid.`);
       return false;
     }
     
     return true;
   });
   
-  files.value.push(...validFiles);
+  if (uploadMode.value === 'single') {
+    // Single mode: replace existing file
+    files.value = validFiles.slice(0, 1);
+  } else {
+    // Multi mode: add to existing files
+    files.value.push(...validFiles);
+  }
 };
 
 const removeFile = (index) => {
@@ -203,20 +269,91 @@ const uploadFiles = async () => {
   uploadedCount.value = 0;
   totalFiles.value = files.value.length;
   
-  // TODO: Implement actual file upload with API
-  // Simulate upload progress
-  for (let i = 0; i < files.value.length; i++) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    uploadedCount.value++;
-    uploadProgress.value = Math.round((uploadedCount.value / totalFiles.value) * 100);
-  }
-  
-  // Complete
-  setTimeout(() => {
+  try {
+    if (uploadMode.value === 'single') {
+      // Single upload - synchronous
+      await uploadSingle();
+    } else {
+      // Multi upload - asynchronous (backend handles async)
+      await uploadMulti();
+    }
+  } catch (error) {
+    console.error('Upload error:', error);
+    emit('upload-error', {
+      error: error.message || 'Upload failed',
+      files: files.value
+    });
+  } finally {
     isUploading.value = false;
-    emit('upload-complete', files.value);
-    clearFiles();
-  }, 500);
+  }
+};
+
+const uploadSingle = async () => {
+  console.log('Single upload starting...');
+  
+  const result = await ingestApi.uploadFile(
+    files.value[0],
+    chunkSize.value,
+    overlap.value,
+    (progress) => {
+      uploadProgress.value = progress;
+      console.log(`Upload progress: ${progress}%`);
+    }
+  );
+  
+  if (result.success) {
+    uploadedCount.value = 1;
+    uploadProgress.value = 100;
+    
+    emit('upload-complete', {
+      success: true,
+      mode: 'single',
+      files: files.value,
+      data: result.data
+    });
+    
+    // Clear files after successful upload
+    setTimeout(() => {
+      clearFiles();
+    }, 1000);
+  } else {
+    throw new Error(result.error);
+  }
+};
+
+const uploadMulti = async () => {
+  console.log('Multi upload starting (async on backend)...');
+  
+  const result = await ingestApi.uploadFiles(
+    files.value,
+    chunkSize.value,
+    overlap.value,
+    (progress) => {
+      uploadProgress.value = progress;
+      // Estimate uploaded count based on progress
+      uploadedCount.value = Math.floor((progress / 100) * totalFiles.value);
+      console.log(`Upload progress: ${progress}%`);
+    }
+  );
+  
+  if (result.success) {
+    uploadedCount.value = totalFiles.value;
+    uploadProgress.value = 100;
+    
+    emit('upload-complete', {
+      success: true,
+      mode: 'multi',
+      files: files.value,
+      data: result.data
+    });
+    
+    // Clear files after successful upload
+    setTimeout(() => {
+      clearFiles();
+    }, 1000);
+  } else {
+    throw new Error(result.error);
+  }
 };
 
 const formatFileSize = (bytes) => {

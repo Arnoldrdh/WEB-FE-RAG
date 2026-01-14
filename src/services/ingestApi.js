@@ -1,4 +1,4 @@
-import api from './api';
+// import api from './api';
 
 const INGEST_PATH = import.meta.env.VITE_API_INGEST_PATH || '/api/ingest';
 

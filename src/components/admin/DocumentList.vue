@@ -165,7 +165,7 @@ import { ref, computed } from 'vue';
 import BaseCard from '../base/BaseCard.vue';
 import BaseInput from '../base/BaseInput.vue';
 import BaseButton from '../base/BaseButton.vue';
-import ProgressBar from './ProgressBar.vue';
+import ProgressBar from './ProggressBar.vue';
 import EmptyState from '../common/EmptyState.vue';
 
 // Sample data - replace with API call

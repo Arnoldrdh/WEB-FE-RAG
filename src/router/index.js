@@ -22,7 +22,7 @@ const router = createRouter({
           component: () => import('@/views/admin/DashboardView.vue'),
           meta: {
             title: 'Dashboard - KnowledgeDesk Admin',
-            requiresAuth: true
+            requiresAuth: false
           }
         },
         {
@@ -31,7 +31,16 @@ const router = createRouter({
           component: () => import('@/views/admin/DocumentView.vue'),
           meta: {
             title: 'Documents - KnowledgeDesk Admin',
-            requiresAuth: true
+            requiresAuth: false
+          }
+        },
+        {
+          path: 'login',
+          name: 'login-admin',
+          component: () => import('@/views/admin/LoginView.vue'),
+          meta: {
+            title: 'Admin Login - KnowledgeDesk Admin',
+            requiresAuth: false
           }
         }
       ]

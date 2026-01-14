@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Base API configuration
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
@@ -20,7 +20,7 @@ api.interceptors.request.use(
     
     // Log request in development
     if (import.meta.env.DEV) {
-      console.log('🚀 API Request:', {
+      console.log('API Request:', {
         method: config.method?.toUpperCase(),
         url: config.url,
         data: config.data,
@@ -31,7 +31,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('❌ Request Error:', error);
+    console.error('Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -41,7 +41,7 @@ api.interceptors.response.use(
   (response) => {
     // Log response in development
     if (import.meta.env.DEV) {
-      console.log('✅ API Response:', {
+      console.log('API Response:', {
         url: response.config.url,
         status: response.status,
         data: response.data
@@ -55,7 +55,7 @@ api.interceptors.response.use(
       // Server responded with error status
       const { status, data } = error.response;
       
-      console.error('❌ API Error Response:', {
+      console.error('API Error Response:', {
         status,
         message: data?.message || data?.detail || 'Unknown error',
         url: error.config?.url
@@ -101,7 +101,7 @@ api.interceptors.response.use(
       
     } else if (error.request) {
       // Request made but no response
-      console.error('❌ No response received:', error.request);
+      console.error(' No response received:', error.request);
       return Promise.reject({
         status: 0,
         message: 'Network error - No response from server',
@@ -110,7 +110,7 @@ api.interceptors.response.use(
       
     } else {
       // Something else happened
-      console.error('❌ Request Error:', error.message);
+      console.error(' Request Error:', error.message);
       return Promise.reject({
         status: 0,
         message: error.message || 'Request failed',

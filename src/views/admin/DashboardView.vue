@@ -197,7 +197,7 @@ import { useRouter } from 'vue-router';
 import AdminLayout from '@/components/layout/AdminLayout.vue';
 import BaseCard from '@/components/base/BaseCard.vue';
 import BaseButton from '@/components/base/BaseButton.vue';
-import ProgressBar from '@/components/admin/ProgressBar.vue';
+import ProgressBar from '@/components/admin/ProggressBar.vue';
 
 const router = useRouter();
 

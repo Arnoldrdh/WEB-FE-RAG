@@ -237,7 +237,7 @@ import BaseButton from '@/components/base/BaseButton.vue';
 import BaseLoader from '@/components/base/BaseLoader.vue';
 import DocumentUpload from '@/components/admin/DocumentUpload.vue';
 import DocumentList from '@/components/admin/DocumentList.vue';
-import ProgressBar from '@/components/admin/ProgressBar.vue';
+import ProgressBar from '@/components/admin/ProggressBar.vue';
 import ErrorMessage from '@/components/common/ErrorMessage.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 
