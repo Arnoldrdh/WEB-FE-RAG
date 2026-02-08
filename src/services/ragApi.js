@@ -1,180 +1,165 @@
 import api from './api';
 
-const RAG_PATH = import.meta.env.VITE_API_RAG_PATH || '/api/rag';
+const RAG_PATH = '/rag';
 
 /**
  * RAG API Service
- * Handle all RAG-related API calls
+ * Public chat – no session management
  */
 const ragApi = {
   /**
-   * Ask a question to the RAG system
-   * @param {string} query - User question
-   * @param {number} k - Number of documents to retrieve (default: 5)
-   * @param {string} sessionId - Optional session ID for conversation context
-   * @returns {Promise} Response with answer and sources
+   * Ask a question with STREAMING (SSE)
+   * POST /api/rag/stream
    */
-  async ask(query, k = 5, sessionId = null) {
+  async askStreaming(query, k = 5, callbacks = {}) {
+    const {
+      onStatus = () => {},
+      onAnswer = () => {},
+      onSources = () => {},
+      onDone = () => {},
+      onError = () => {}
+    } = callbacks;
+
+    return new Promise((resolve, reject) => {
+      let fullAnswer = '';
+
+      const baseURL = api.defaults.baseURL;
+      const url = `${baseURL}${RAG_PATH}/stream`;
+
+      console.log('[RAG] Starting SSE stream to:', url);
+
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query, k })
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+
+          function readStream() {
+            reader.read().then(({ done, value }) => {
+              if (done) {
+                console.log('[RAG] Stream completed');
+                resolve({ success: true, answer: fullAnswer });
+                return;
+              }
+
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split('\n');
+
+              lines.forEach(line => {
+                if (!line.startsWith('data: ')) return;
+
+                try {
+                  const event = JSON.parse(line.slice(6));
+                  console.log('[RAG] Event:', event.type);
+
+                  switch (event.type) {
+                    case 'status':
+                      onStatus(event.message, event.progress);
+                      break;
+
+                    case 'answer':
+                      fullAnswer += event.content;
+                      onAnswer(event.content, fullAnswer);
+                      break;
+
+                    case 'sources':
+                      onSources(event.content);
+                      break;
+
+                    case 'done':
+                      onDone(event.metadata || {});
+                      break;
+
+                    case 'warning':
+                      console.warn('[RAG] Warning:', event.message);
+                      break;
+
+                    case 'error':
+                      onError(event.message);
+                      reject({
+                        success: false,
+                        error: event.message
+                      });
+                      return;
+                  }
+                } catch (e) {
+                  console.error('[RAG] Failed to parse SSE event:', e);
+                }
+              });
+
+              readStream();
+            }).catch(err => {
+              console.error('[RAG] Stream read error:', err);
+              onError(err.message);
+              reject({ success: false, error: err.message });
+            });
+          }
+
+          readStream();
+        })
+        .catch(error => {
+          console.error('[RAG] Fetch error:', error);
+          onError(error.message);
+          reject({ success: false, error: error.message });
+        });
+    });
+  },
+
+  /**
+   * Download document by ID
+   * GET /api/documents/:id/download
+   * 
+   * @param {number|string} documentId - Document ID
+   * @param {string} filename - Filename for download
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async downloadDocument(documentId, filename) {
     try {
-      const response = await api.post(`${RAG_PATH}/ask`, {
-        query,
-        k,
-        session_id: sessionId,
-        timestamp: new Date().toISOString()
+      console.log('[Download] Starting download for document:', documentId);
+
+      const response = await api.get(`/documents/${documentId}/download`, {
+        responseType: 'blob',
+        timeout: 30000
+      });
+
+      // Create blob and trigger download
+      const blob = new Blob([response.data], {
+        type: response.headers['content-type'] || 'application/pdf'
       });
       
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (error) {
-      console.error('RAG Ask Error:', error);
-      return {
-        success: false,
-        error: error.message || 'Failed to get answer',
-        details: error.data
-      };
-    }
-  },
-
-  /**
-   * Get chat history for a session
-   * @param {string} sessionId - Session ID
-   * @returns {Promise} Chat history
-   */
-  async getChatHistory(sessionId) {
-    try {
-      const response = await api.get(`${RAG_PATH}/history/${sessionId}`);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `document-${documentId}.pdf`;
       
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (error) {
-      console.error('Get Chat History Error:', error);
-      return {
-        success: false,
-        error: error.message || 'Failed to get chat history',
-        details: error.data
-      };
-    }
-  },
-
-  /**
-   * Create a new chat session
-   * @returns {Promise} New session data
-   */
-  async createSession() {
-    try {
-      const response = await api.post(`${RAG_PATH}/session`);
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
       
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (error) {
-      console.error('Create Session Error:', error);
-      return {
-        success: false,
-        error: error.message || 'Failed to create session',
-        details: error.data
-      };
-    }
-  },
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-  /**
-   * Delete a chat session
-   * @param {string} sessionId - Session ID to delete
-   * @returns {Promise}
-   */
-  async deleteSession(sessionId) {
-    try {
-      await api.delete(`${RAG_PATH}/session/${sessionId}`);
-      
+      console.log('[Download] Completed:', filename);
+
       return {
         success: true
       };
     } catch (error) {
-      console.error('Delete Session Error:', error);
-      return {
-        success: false,
-        error: error.message || 'Failed to delete session',
-        details: error.data
-      };
-    }
-  },
-
-  /**
-   * Get all available sessions
-   * @returns {Promise} List of sessions
-   */
-  async getSessions() {
-    try {
-      const response = await api.get(`${RAG_PATH}/sessions`);
+      console.error('[Download] Error:', error.message);
       
       return {
-        success: true,
-        data: response.data
-      };
-    } catch (error) {
-      console.error('Get Sessions Error:', error);
-      return {
         success: false,
-        error: error.message || 'Failed to get sessions',
-        details: error.data
-      };
-    }
-  },
-
-  /**
-   * Search documents without asking a question
-   * @param {string} query - Search query
-   * @param {number} k - Number of results
-   * @returns {Promise} Search results
-   */
-  async search(query, k = 5) {
-    try {
-      const response = await api.post(`${RAG_PATH}/search`, {
-        query,
-        k
-      });
-      
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (error) {
-      console.error('Search Error:', error);
-      return {
-        success: false,
-        error: error.message || 'Failed to search',
-        details: error.data
-      };
-    }
-  },
-
-  /**
-   * Get similar documents
-   * @param {string} documentId - Document ID
-   * @param {number} k - Number of similar documents
-   * @returns {Promise} Similar documents
-   */
-  async getSimilarDocuments(documentId, k = 5) {
-    try {
-      const response = await api.get(`${RAG_PATH}/similar/${documentId}`, {
-        params: { k }
-      });
-      
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (error) {
-      console.error('Get Similar Documents Error:', error);
-      return {
-        success: false,
-        error: error.message || 'Failed to get similar documents',
-        details: error.data
+        error: error.response?.data?.message || error.message || 'Failed to download document'
       };
     }
   }

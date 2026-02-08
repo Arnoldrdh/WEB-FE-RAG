@@ -29,7 +29,7 @@
       </div>
       <h2 class="text-2xl font-bold text-gray-900 mb-2">Selamat datang di KnowledgeDesk</h2>
       <p class="text-gray-500 text-center max-w-md mb-8">
-        Tanyakan apapun dan dapatkan jawaban yang akurat dengan referensi dokumen lengkap
+        Tanyakan apapun tentang Prodi Teknik Informatika dan dapatkan jawaban yang akurat dengan referensi dokumen lengkap
       </p>
       
       <!-- Connection Status -->
@@ -61,15 +61,16 @@
       </div>
     </div>
 
-    <!-- Messages -->
+    <!-- Messages Container -->
     <div v-else ref="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
+      <!-- Existing Messages -->
       <ChatMessage 
         v-for="message in messages" 
         :key="message.id"
         :message="message"
       />
       
-      <!-- Loading State -->
+      <!-- Loading/Streaming State -->
       <div v-if="isLoading" class="flex items-start space-x-3 animate-fade-in">
         <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,12 +78,12 @@
           </svg>
         </div>
         <div class="flex-1 bg-gray-50 rounded-2xl p-4">
-          <div class="flex items-center space-x-2">
-            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+          <div class="flex items-center space-x-2 mb-2">
+            <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+            <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+            <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
           </div>
-          <p class="text-xs text-gray-500 mt-2">Mencari jawaban...</p>
+          <p class="text-xs text-gray-500">{{ loadingStatus || 'Mencari jawaban...' }}</p>
         </div>
       </div>
     </div>
@@ -99,84 +100,51 @@
         <p class="text-xs text-gray-400">
           KnowledgeDesk dapat membuat kesalahan. Harap periksa informasi penting.
         </p>
-        <div v-if="sessionId" class="flex items-center space-x-1 text-xs text-gray-400">
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>Session active</span>
-        </div>
+        <button 
+          v-if="messages.length > 0"
+          @click="clearChat"
+          class="text-xs text-gray-400 hover:text-red-500 transition"
+        >
+          Clear Chat
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import { ref, nextTick } from 'vue';
 import ragApi from '@/services/ragApi';
 import ChatMessage from './ChatMessage.vue';
 import ChatInput from './ChatInput.vue';
 
+// ============================================
+// State Management
+// ============================================
 const messages = ref([]);
 const inputMessage = ref('');
 const isLoading = ref(false);
+const loadingStatus = ref('');
 const error = ref(null);
 const messagesContainer = ref(null);
-const sessionId = ref(null);
 const isConnected = ref(true);
 
+// ============================================
+// Example Questions
+// ============================================
 const exampleQuestions = [
-  'Apa itu machine learning dan bagaimana cara kerjanya?',
-  'Bagaimana cara mengoptimalkan performa aplikasi web?',
-  'Jelaskan tentang arsitektur microservices',
-  'Apa perbedaan antara SQL dan NoSQL?'
+  'Apa visi dari Prodi Teknik Informatika?',
+  'Berapa SKS total untuk lulus dari prodi ini?',
+  'Apa saja konsentrasi yang tersedia?',
+  'Bagaimana prospek karir lulusan Teknik Informatika?'
 ];
 
-// Initialize session on component mount
-onMounted(async () => {
-  await initializeSession();
-});
 
-// Cleanup on unmount
-onBeforeUnmount(() => {
-  // Optional: Delete session when user leaves
-  // if (sessionId.value) {
-  //   ragApi.deleteSession(sessionId.value);
-  // }
-});
 
-/**
- * Initialize chat session
- */
-const initializeSession = async () => {
-  try {
-    const result = await ragApi.createSession();
-    
-    if (result.success) {
-      sessionId.value = result.data.session_id || generateSessionId();
-      isConnected.value = true;
-      console.log(' Session created:', sessionId.value);
-    } else {
-      console.warn(' Failed to create session, using local ID');
-      sessionId.value = generateSessionId();
-      isConnected.value = false;
-    }
-  } catch (err) {
-    console.error(' Session initialization error:', err);
-    sessionId.value = generateSessionId();
-    isConnected.value = false;
-  }
-};
 
-/**
- * Generate local session ID as fallback
- */
-const generateSessionId = () => {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-};
-
-/**
- * Handle example question click
- */
+// ============================================
+// Handle Example Click
+// ============================================
 const handleExampleClick = (question) => {
   if (!isConnected.value) {
     error.value = 'Tidak dapat terhubung ke server. Silakan coba lagi nanti.';
@@ -186,23 +154,19 @@ const handleExampleClick = (question) => {
   handleSend();
 };
 
-/**
- * Handle send message
- */
+// ============================================
+// MAIN: Handle Send Message with STREAMING
+// ============================================
 const handleSend = async () => {
   // Validation
   if (!inputMessage.value.trim() || isLoading.value) return;
   
-  // Check connection
-  if (!isConnected.value) {
-    error.value = 'Tidak dapat terhubung ke server. Silakan coba lagi nanti.';
-    return;
-  }
+ 
 
   // Clear previous error
   error.value = null;
 
-  // Create user message
+  // 1. Create user message
   const userMessage = {
     id: Date.now(),
     type: 'user',
@@ -210,106 +174,155 @@ const handleSend = async () => {
     timestamp: new Date()
   };
 
-  // Add user message to chat
   messages.value.push(userMessage);
   
   // Save query and clear input
   const query = inputMessage.value.trim();
   inputMessage.value = '';
   isLoading.value = true;
+  loadingStatus.value = 'Memproses pertanyaan...';
 
   // Scroll to bottom
   await nextTick();
   scrollToBottom();
 
+  // 2. Create placeholder bot message for streaming
+  const botMessageId = Date.now() + 1;
+  const botMessage = {
+    id: botMessageId,
+    type: 'assistant',
+    content: '',  //  Will be filled real-time
+    sources: [],  //  Will be added when received
+    timestamp: new Date(),
+    isStreaming: true
+  };
+  
+  messages.value.push(botMessage);
+  
   try {
-    // Call RAG API
-    console.log(' Sending query to API:', query);
-    const result = await ragApi.ask(
+    console.log(' Sending streaming query:', query);
+    
+    //  CALL STREAMING API
+    await ragApi.askStreaming(
       query,
-      5, // k - number of documents to retrieve
-      sessionId.value
-    );
+      5,  // k = 5 documents
+      {
+        // ============================================
+        // Event Handler: Status Updates
+        // ============================================
+        onStatus: (message, progress) => {
+          loadingStatus.value = message;
+          console.log(` [${progress}%] ${message}`);
+        },
 
-    console.log('📥 API Response:', result);
+        // ============================================
+        // Event Handler: Answer Chunks (REAL-TIME!)
+        // ============================================
+        onAnswer: (chunk, fullAnswer) => {
+          // Find bot message and update content
+          const msg = messages.value.find(m => m.id === botMessageId);
+          if (msg) {
+            msg.content = fullAnswer;  //  Update with full answer so far
+          }
+          
+          // Auto-scroll as answer grows
+          scrollToBottom();
+        },
 
-    if (result.success) {
-      // Success - Add bot message
-      const botMessage = {
-        id: Date.now() + 1,
-        type: 'assistant',
-        content: result.data.answer || 'Maaf, saya tidak dapat menemukan jawaban.',
-        sources: formatSources(result.data.sources),
-        timestamp: new Date()
-      };
-      
-      messages.value.push(botMessage);
-      isConnected.value = true;
-      
-    } else {
-      // API returned error
-      console.error(' API Error:', result.error);
-      
-      const errorMessage = {
-        id: Date.now() + 1,
-        type: 'assistant',
-        content: `Maaf, terjadi kesalahan: ${result.error}`,
-        timestamp: new Date()
-      };
-      
-      messages.value.push(errorMessage);
-      error.value = result.error;
-      
-      // Check if it's a connection error
-      if (result.error.includes('Network') || result.error.includes('timeout')) {
-        isConnected.value = false;
+        // ============================================
+        // Event Handler: Sources/Citations
+        // ============================================
+        onSources: (sources) => {
+          const msg = messages.value.find(m => m.id === botMessageId);
+          if (msg) {
+            msg.sources = formatSources(sources);  //  Format and attach sources
+          }
+          console.log(' Sources received:', sources.length);
+        },
+
+        // ============================================
+        // Event Handler: Stream Complete
+        // ============================================
+        onDone: (metadata) => {
+          const msg = messages.value.find(m => m.id === botMessageId);
+          if (msg) {
+            msg.isStreaming = false;  //  Mark as complete
+          }
+          
+          isLoading.value = false;
+          loadingStatus.value = '';
+          isConnected.value = true;
+          
+          console.log(' Stream completed');
+          console.log('   Metadata:', metadata);
+        },
+
+        // ============================================
+        // Event Handler: Errors
+        // ============================================
+        onError: (errorMessage) => {
+          error.value = errorMessage;
+          
+          const msg = messages.value.find(m => m.id === botMessageId);
+          if (msg) {
+            msg.content = `Maaf, terjadi kesalahan: ${errorMessage}`;
+            msg.isStreaming = false;
+          }
+          
+          isLoading.value = false;
+          loadingStatus.value = '';
+          
+          // Check if connection error
+          if (errorMessage.includes('Network') || errorMessage.includes('timeout') || errorMessage.includes('Failed to fetch')) {
+            isConnected.value = false;
+          }
+        }
       }
-    }
+    );
     
   } catch (err) {
-    // Unexpected error
-    console.error('Unexpected error:', err);
+    console.error(' Unexpected error:', err);
+    // console.error(' Stack:', err?.stack);
+    // console.error(' Message:', err?.message);
     
-    const errorMessage = {
-      id: Date.now() + 1,
-      type: 'assistant',
-      content: 'Maaf, terjadi kesalahan yang tidak terduga. Silakan coba lagi.',
-      timestamp: new Date()
-    };
+    const msg = messages.value.find(m => m.id === botMessageId);
+    if (msg) {
+      msg.content = 'Maaf, terjadi kesalahan yang tidak terduga. Silakan coba lagi.';
+      msg.isStreaming = false;
+    }
     
-    messages.value.push(errorMessage);
     error.value = 'Terjadi kesalahan yang tidak terduga';
     isConnected.value = false;
     
   } finally {
     isLoading.value = false;
+    loadingStatus.value = '';
     
-    // Scroll to bottom
     await nextTick();
     scrollToBottom();
   }
 };
 
-/**
- * Format sources from API response
- */
+// ============================================
+// Format Sources from Backend
+// ============================================
 const formatSources = (sources) => {
   if (!sources || !Array.isArray(sources)) return [];
   
   return sources.map((source, index) => ({
-    id: source.id || index,
-    title: source.metadata?.filename || source.metadata?.source || 'Unknown Document',
-    page: source.metadata?.page || 1,
+    id: source.doc_id || index,
+    title: source.filename || 'Unknown Document',
+    page: source.page || 1,
     confidence: source.score || 0,
     relevance: source.score || 0,
-    document_id: source.document_id || source.id,
-    content: source.content // Keep content for reference
+    snippet: source.snippet || '',
+    document_id: source.doc_id
   }));
 };
 
-/**
- * Scroll messages to bottom
- */
+// ============================================
+// Scroll to Bottom
+// ============================================
 const scrollToBottom = () => {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTo({
@@ -319,9 +332,9 @@ const scrollToBottom = () => {
   }
 };
 
-/**
- * Clear chat history
- */
+// ============================================
+// Clear Chat
+// ============================================
 const clearChat = () => {
   if (confirm('Apakah Anda yakin ingin menghapus riwayat chat?')) {
     messages.value = [];
@@ -329,7 +342,7 @@ const clearChat = () => {
   }
 };
 
-// Expose methods for parent component (optional)
+// Expose methods
 defineExpose({
   clearChat,
   messages
@@ -338,12 +351,8 @@ defineExpose({
 
 <style scoped>
 @keyframes bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
 .animate-bounce {
@@ -365,7 +374,6 @@ defineExpose({
   animation: fade-in 0.3s ease-out;
 }
 
-/* Smooth scrolling */
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;

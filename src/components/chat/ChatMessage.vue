@@ -37,6 +37,9 @@
             v-for="source in message.sources" 
             :key="source.id"
             :source="source"
+            @download-start="handleDownloadStart"
+            @download-success="handleDownloadSuccess"
+            @download-error="handleDownloadError"
           />
         </div>
       </div>
@@ -65,5 +68,20 @@ const formatTime = (date) => {
     hour: '2-digit', 
     minute: '2-digit' 
   });
+};
+
+/**
+ * Handle download events from SourceReference components
+ */
+const handleDownloadStart = (source) => {
+  console.log('[ChatMessage] Download started:', source.title);
+};
+
+const handleDownloadSuccess = ({ source, message }) => {
+  console.log('[ChatMessage] Download completed:', source.title);
+};
+
+const handleDownloadError = ({ source, error }) => {
+  console.error('[ChatMessage] Download failed:', source.title, error);
 };
 </script>

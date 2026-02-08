@@ -26,44 +26,85 @@
       <!-- Download Button -->
       <button 
         @click="handleDownload"
-        class="ml-2 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+        class="ml-2 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition opacity-0 group-hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
         title="Download dokumen"
+        :disabled="isDownloading"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Download Icon (default) -->
+        <svg v-if="!isDownloading" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
+        
+        <!-- Loading Spinner -->
+        <svg v-else class="w-5 h-5 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
       </button>
-    </div>
-
-    <!-- Progress Bar (Optional - for future use) -->
-    <div v-if="source.relevance" class="mt-2">
-      <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
-        <span>Relevansi</span>
-        <span>{{ Math.round(source.relevance * 100) }}%</span>
-      </div>
-      <div class="w-full bg-gray-200 rounded-full h-1.5">
-        <div 
-          class="bg-blue-600 h-1.5 rounded-full transition-all"
-          :style="{ width: `${source.relevance * 100}%` }"
-        ></div>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { defineProps } from 'vue';
+import { ref } from 'vue';
+import ragApi from '@/services/ragApi';
 
-defineProps({
+const props = defineProps({
   source: {
     type: Object,
     required: true
   }
 });
 
-const handleDownload = () => {
-  // TODO: Implement download functionality via API
-  console.log('Download document:', this.source);
-  alert(`Download functionality akan diimplementasikan untuk: ${this.source.title}`);
+const emit = defineEmits(['download-start', 'download-success', 'download-error']);
+
+const isDownloading = ref(false);
+
+const handleDownload = async () => {
+  if (isDownloading.value) {
+    console.log('[SourceReference] Download already in progress, skipping');
+    return;
+  }
+  
+  isDownloading.value = true;
+  
+  try {
+    console.log('[SourceReference] Starting download for:', props.source.title);
+    
+    emit('download-start', props.source);
+    
+    const documentId = props.source.document_id || props.source.id;
+    
+    const result = await ragApi.downloadDocument(documentId, props.source.title);
+    
+    if (result.success) {
+      console.log('[SourceReference] Download successful:', props.source.title);
+      emit('download-success', { source: props.source, message: 'Document downloaded successfully' });
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error('[SourceReference] Download failed:', error.message);
+    emit('download-error', { source: props.source, error: error.message || error });
+    alert(`Gagal mengunduh dokumen: ${error.message || 'Unknown error'}`);
+  } finally {
+    isDownloading.value = false;
+  }
 };
 </script>
+
+<style scoped>
+.group:hover button {
+  opacity: 1;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+</style>
