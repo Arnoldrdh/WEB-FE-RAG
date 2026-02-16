@@ -24,7 +24,7 @@
 <script setup>
 import { ref } from 'vue';
 import BaseLayout from './BaseLayout.vue';
-import Sidebar from './Sidebar.vue';
+import Sidebar from './SideBar.vue';
 import Navbar from './Navbar.vue';
 import Footer from './Footer.vue';
 
