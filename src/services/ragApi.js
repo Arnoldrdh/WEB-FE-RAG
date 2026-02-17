@@ -4,7 +4,7 @@ const RAG_PATH = '/rag';
 
 /**
  * RAG API Service
- * Public chat – no session management
+ * Public chat - no session management
  */
 const ragApi = {
   /**
@@ -13,15 +13,18 @@ const ragApi = {
    */
   async askStreaming(query, k = 5, callbacks = {}) {
     const {
-      onStatus = () => {},
-      onAnswer = () => {},
+      onStatus  = () => {},
+      onAnswer  = () => {},
       onSources = () => {},
-      onDone = () => {},
-      onError = () => {}
+      onDone    = () => {},
+      onError   = () => {}
     } = callbacks;
 
     return new Promise((resolve, reject) => {
-      let fullAnswer = '';
+      // FIX: fullAnswer tidak di-accumulate di sini
+      // Backend sudah kirim full answer sekaligus, bukan per-chunk
+      // Jadi cukup simpan value terakhir yang diterima
+      let lastAnswer = '';
 
       const baseURL = api.defaults.baseURL;
       const url = `${baseURL}${RAG_PATH}/stream`;
@@ -40,35 +43,46 @@ const ragApi = {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
 
-          const reader = response.body.getReader();
+          const reader  = response.body.getReader();
           const decoder = new TextDecoder();
+
+          // FIX: track apakah sudah resolve/reject agar tidak dipanggil dua kali
+          let settled = false;
 
           function readStream() {
             reader.read().then(({ done, value }) => {
+
               if (done) {
-                console.log('[RAG] Stream completed');
-                resolve({ success: true, answer: fullAnswer });
+                console.log('[RAG] Stream completed (reader done)');
+                // Hanya resolve jika belum settled oleh event 'done' dari backend
+                if (!settled) {
+                  settled = true;
+                  resolve({ success: true, answer: lastAnswer });
+                }
                 return;
               }
 
               const chunk = decoder.decode(value, { stream: true });
               const lines = chunk.split('\n');
 
-              lines.forEach(line => {
-                if (!line.startsWith('data: ')) return;
+              for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
 
                 try {
                   const event = JSON.parse(line.slice(6));
                   console.log('[RAG] Event:', event.type);
 
                   switch (event.type) {
+
                     case 'status':
                       onStatus(event.message, event.progress);
                       break;
 
                     case 'answer':
-                      fullAnswer += event.content;
-                      onAnswer(event.content, fullAnswer);
+                      // FIX: assign langsung, bukan +=
+                      // Backend kirim full_answer sekaligus bukan per-chunk
+                      lastAnswer = event.content;
+                      onAnswer(event.content, lastAnswer);
                       break;
 
                     case 'sources':
@@ -77,6 +91,11 @@ const ragApi = {
 
                     case 'done':
                       onDone(event.metadata || {});
+                      // FIX: resolve di sini, bukan tunggu reader done
+                      if (!settled) {
+                        settled = true;
+                        resolve({ success: true, answer: lastAnswer });
+                      }
                       break;
 
                     case 'warning':
@@ -85,22 +104,30 @@ const ragApi = {
 
                     case 'error':
                       onError(event.message);
-                      reject({
-                        success: false,
-                        error: event.message
-                      });
+                      if (!settled) {
+                        settled = true;
+                        // FIX: reject dengan Error object agar catch di ChatContainer
+                        // bisa baca .message dengan benar
+                        reject(new Error(event.message));
+                      }
                       return;
                   }
+
                 } catch (e) {
-                  console.error('[RAG] Failed to parse SSE event:', e);
+                  console.error('[RAG] Failed to parse SSE event:', line, e);
+                  // Lanjut ke line berikutnya, jangan stop stream
                 }
-              });
+              }
 
               readStream();
+
             }).catch(err => {
               console.error('[RAG] Stream read error:', err);
               onError(err.message);
-              reject({ success: false, error: err.message });
+              if (!settled) {
+                settled = true;
+                reject(new Error(err.message));
+              }
             });
           }
 
@@ -109,7 +136,7 @@ const ragApi = {
         .catch(error => {
           console.error('[RAG] Fetch error:', error);
           onError(error.message);
-          reject({ success: false, error: error.message });
+          reject(new Error(error.message));
         });
     });
   },
@@ -117,10 +144,6 @@ const ragApi = {
   /**
    * Download document by ID
    * GET /api/documents/:id/download
-   * 
-   * @param {number|string} documentId - Document ID
-   * @param {string} filename - Filename for download
-   * @returns {Promise<{success: boolean, error?: string}>}
    */
   async downloadDocument(documentId, filename) {
     try {
@@ -131,32 +154,25 @@ const ragApi = {
         timeout: 30000
       });
 
-      // Create blob and trigger download
       const blob = new Blob([response.data], {
         type: response.headers['content-type'] || 'application/pdf'
       });
-      
-      const url = window.URL.createObjectURL(blob);
+
+      const url  = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href     = url;
       link.download = filename || `document-${documentId}.pdf`;
-      
-      // Trigger download
+
       document.body.appendChild(link);
       link.click();
-      
-      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
       console.log('[Download] Completed:', filename);
+      return { success: true };
 
-      return {
-        success: true
-      };
     } catch (error) {
       console.error('[Download] Error:', error.message);
-      
       return {
         success: false,
         error: error.response?.data?.message || error.message || 'Failed to download document'
