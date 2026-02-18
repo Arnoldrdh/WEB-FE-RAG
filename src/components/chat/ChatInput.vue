@@ -1,6 +1,6 @@
 <template>
   <div class="relative">
-    <div class="flex items-end space-x-2 bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition">
+    <div class="flex items-end space-x-2 bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/20 transition">
       <!-- Textarea -->
       <textarea
         ref="textareaRef"
@@ -17,7 +17,7 @@
       <button
         @click="handleSend"
         :disabled="!localValue.trim() || disabled"
-        class="m-2 p-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all flex-shrink-0"
+        class="m-2 p-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-teal-500 text-white hover:shadow-lg hover:from-blue-700 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all flex-shrink-0"
       >
         <svg v-if="!disabled" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -29,7 +29,7 @@
       </button>
     </div>
 
-    <!-- Character count (optional) -->
+    <!-- Character count -->
     <div v-if="showCharCount && localValue.length > 0" class="absolute -bottom-6 right-0 text-xs text-gray-400">
       {{ localValue.length }} karakter
     </div>

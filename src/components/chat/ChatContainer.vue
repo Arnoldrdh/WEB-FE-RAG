@@ -22,7 +22,8 @@
 
     <!-- Empty State -->
     <div v-if="messages.length === 0" class="flex-1 flex flex-col items-center justify-center p-8">
-      <div class="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl flex items-center justify-center mb-6">
+      <!-- Icon -->
+      <div class="w-20 h-20 bg-gradient-to-br from-blue-100 to-teal-100 rounded-3xl flex items-center justify-center mb-6">
         <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
         </svg>
@@ -31,7 +32,7 @@
       <p class="text-gray-500 text-center max-w-md mb-8">
         Tanyakan apapun tentang Prodi Teknik Informatika dan dapatkan jawaban yang akurat dengan referensi dokumen lengkap
       </p>
-      
+
       <!-- Connection Status -->
       <div v-if="!isConnected" class="mb-6">
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center space-x-2">
@@ -41,47 +42,36 @@
           <span class="text-sm text-yellow-800">Tidak dapat terhubung ke server. Periksa koneksi Anda.</span>
         </div>
       </div>
-      
-      <!-- Example Questions -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
-        <button 
-          v-for="example in exampleQuestions" 
-          :key="example"
-          @click="handleExampleClick(example)"
-          :disabled="!isConnected"
-          class="p-4 text-left bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 transition group disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <div class="flex items-start space-x-3">
-            <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span class="text-sm text-gray-700 group-hover:text-gray-900">{{ example }}</span>
-          </div>
-        </button>
+
+      <!-- Prompt hint (no hardcoded questions) -->
+      <div class="flex items-center space-x-2 text-sm text-gray-400">
+        <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>Mulai dengan mengetik pertanyaanmu di bawah</span>
       </div>
     </div>
 
     <!-- Messages Container -->
     <div v-else ref="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
-      <!-- Existing Messages -->
-      <ChatMessage 
-        v-for="message in messages" 
+      <ChatMessage
+        v-for="message in messages"
         :key="message.id"
         :message="message"
       />
-      
+
       <!-- Loading/Streaming State -->
       <div v-if="isLoading" class="flex items-start space-x-3 animate-fade-in">
-        <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div class="w-8 h-8 bg-gradient-to-br from-blue-600 to-teal-500 rounded-lg flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
           </svg>
         </div>
         <div class="flex-1 bg-gray-50 rounded-2xl p-4">
           <div class="flex items-center space-x-2 mb-2">
-            <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-            <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-            <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+            <div class="w-2 h-2 bg-teal-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+            <div class="w-2 h-2 bg-teal-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+            <div class="w-2 h-2 bg-teal-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
           </div>
           <p class="text-xs text-gray-500">{{ loadingStatus || 'Mencari jawaban...' }}</p>
         </div>
@@ -90,7 +80,7 @@
 
     <!-- Input Area -->
     <div class="border-t border-gray-200 p-4">
-      <ChatInput 
+      <ChatInput
         v-model="inputMessage"
         :disabled="isLoading || !isConnected"
         @send="handleSend"
@@ -100,7 +90,7 @@
         <p class="text-xs text-gray-400">
           KnowledgeDesk dapat membuat kesalahan. Harap periksa informasi penting.
         </p>
-        <button 
+        <button
           v-if="messages.length > 0"
           @click="clearChat"
           class="text-xs text-gray-400 hover:text-red-500 transition"
