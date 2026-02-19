@@ -1,20 +1,21 @@
 <template>
   <BaseLayout>
-    <div class="min-h-screen flex bg-gray-50">
+    <div class="relative min-h-screen flex bg-[#0c1a2e]">
+
+      <!-- Background orbs -->
+      <div class="pointer-events-none fixed top-[-200px] right-[-200px] w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(29,111,164,0.14),transparent_70%)] blur-[80px] z-0"></div>
+      <div class="pointer-events-none fixed bottom-[-150px] left-[200px] w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(13,148,136,0.1),transparent_70%)] blur-[80px] z-0"></div>
+
       <!-- Sidebar -->
       <Sidebar :collapsed="sidebarCollapsed" @toggle="toggleSidebar" />
 
-      <!-- Main Content -->
-      <div class="flex-1 flex flex-col" :class="sidebarCollapsed ? 'ml-20' : 'ml-64'">
-        <!-- Navbar -->
+      <!-- Main -->
+      <div class="relative z-10 flex-1 flex flex-col transition-all duration-300 min-w-0"
+        :class="sidebarCollapsed ? 'ml-20' : 'ml-64'">
         <Navbar @toggle-sidebar="toggleSidebar" />
-
-        <!-- Page Content -->
-        <main class="flex-1 overflow-y-auto p-6">
+        <main class="flex-1 overflow-y-auto p-7">
           <slot />
         </main>
-
-        <!-- Footer -->
         <Footer />
       </div>
     </div>
@@ -29,8 +30,5 @@ import Navbar from './Navbar.vue';
 import Footer from './Footer.vue';
 
 const sidebarCollapsed = ref(false);
-
-const toggleSidebar = () => {
-  sidebarCollapsed.value = !sidebarCollapsed.value;
-};
+const toggleSidebar = () => { sidebarCollapsed.value = !sidebarCollapsed.value; };
 </script>
