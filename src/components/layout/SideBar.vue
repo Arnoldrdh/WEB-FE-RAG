@@ -92,7 +92,7 @@ const menuItems = [
 ];
 
 const isActive = (path) => route.path === path;
-const handleLogout = () => { authService.logout(); router.push('/login'); };
+const handleLogout = () => { authService.logout(); router.push('/admin/login'); };
 </script>
 
 <style scoped>
