@@ -29,7 +29,7 @@ const ragApi = {
       const baseURL = api.defaults.baseURL;
       const url = `${baseURL}${RAG_PATH}/stream`;
 
-      console.log('[RAG] Starting SSE stream to:', url);
+      // console.log('[RAG] Starting SSE stream to:', url);
 
       fetch(url, {
         method: 'POST',
@@ -46,14 +46,14 @@ const ragApi = {
           const reader  = response.body.getReader();
           const decoder = new TextDecoder();
 
-          // FIX: track apakah sudah resolve/reject agar tidak dipanggil dua kali
+          //track apakah sudah resolve/reject agar tidak dipanggil dua kali
           let settled = false;
 
           function readStream() {
             reader.read().then(({ done, value }) => {
 
               if (done) {
-                console.log('[RAG] Stream completed (reader done)');
+                // console.log('[RAG] Stream completed (reader done)');
                 // Hanya resolve jika belum settled oleh event 'done' dari backend
                 if (!settled) {
                   settled = true;
@@ -70,7 +70,7 @@ const ragApi = {
 
                 try {
                   const event = JSON.parse(line.slice(6));
-                  console.log('[RAG] Event:', event.type);
+                  // console.log('[RAG] Event:', event.type);
 
                   switch (event.type) {
 

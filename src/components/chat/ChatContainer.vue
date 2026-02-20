@@ -190,7 +190,7 @@ const handleSend = async () => {
   messages.value.push(botMessage);
   
   try {
-    console.log(' Sending streaming query:', query);
+    // console.log(' Sending streaming query:', query);
     
     //  CALL STREAMING API
     await ragApi.askStreaming(
@@ -202,7 +202,7 @@ const handleSend = async () => {
         // ============================================
         onStatus: (message, progress) => {
           loadingStatus.value = message;
-          console.log(` [${progress}%] ${message}`);
+          // console.log(` [${progress}%] ${message}`);
         },
 
         // ============================================
@@ -227,7 +227,7 @@ const handleSend = async () => {
           if (msg) {
             msg.sources = formatSources(sources);  //  Format and attach sources
           }
-          console.log(' Sources received:', sources.length);
+          // console.log(' Sources received:', sources.length);
         },
 
         // ============================================
@@ -243,8 +243,8 @@ const handleSend = async () => {
           loadingStatus.value = '';
           isConnected.value = true;
           
-          console.log(' Stream completed');
-          console.log('   Metadata:', metadata);
+          // console.log(' Stream completed');
+          // console.log('   Metadata:', metadata);
         },
 
         // ============================================

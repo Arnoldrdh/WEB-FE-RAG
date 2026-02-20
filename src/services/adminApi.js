@@ -32,11 +32,7 @@ class AdminApi {
         error: error.message || 'Failed to get statistics',
         data: {
           total: 0,
-          processing: 0,
           completed: 0,
-          failed: 0,
-          storage_used: '0 MB',
-          storage_limit: '10 GB'
         }
       };
     }
@@ -47,13 +43,13 @@ class AdminApi {
    */
   async getDocuments(page = 1, limit = 100) {
     try {
-      console.log(`Fetching documents page ${page}...`);
+      // console.log(`Fetching documents page ${page}...`);
       
       const response = await api.get('/admin/documents', {
         params: { page, limit }
       });
       
-      console.log('Documents response:', response.data);
+      // console.log('Documents response:', response.data);
 
       if (response.data && response.data.success) {
         return {
